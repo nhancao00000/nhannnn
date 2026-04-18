@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard | FoodDash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-page">
+<div class="admin-shell">
+    <aside class="admin-sidebar">
+        <a class="admin-brand" href="index.html">
+            <span class="admin-brand-mark">FD</span>
+            <span>FoodDash Ops</span>
+        </a>
+
+        <nav class="admin-nav">
+            <a class="active" href="admin.html">Dashboard</a>
+            <a href="menu.html">Customer Menu</a>
+            <a href="cart.html">Customer Cart</a>
+            <a href="tracking.html">Delivery Tracking</a>
+        </nav>
+
+        <div class="admin-sidecard">
+            <span class="admin-sidecard-label">Restaurant Mode</span>
+            <strong>Manage orders, menu and revenue in one place.</strong>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-topbar">
+            <div>
+                <span class="admin-kicker">Restaurant Management Dashboard</span>
+                <h1>Cập nhật menu, quản lý đơn hàng và phân tích doanh thu</h1>
+            </div>
+            <div class="admin-top-actions">
+                <a class="btn btn-secondary" href="index.html">View User Site</a>
+            </div>
+        </header>
+
+        <section id="adminStats" class="admin-stats-grid"></section>
+
+        <section class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <span class="admin-kicker">Menu Control</span>
+                    <h2>Thêm món mới</h2>
+                </div>
+            </div>
+            <form id="menuForm" class="admin-form-grid">
+                <input name="name" type="text" placeholder="Tên món" required>
+                <input name="category" type="text" placeholder="Danh mục" required>
+                <input name="price" type="number" step="0.01" placeholder="Giá" required>
+                <input name="description" type="text" placeholder="Mô tả món ăn" required>
+                <button class="btn btn-primary" type="submit">Thêm menu</button>
+            </form>
+            <p id="menuFormMessage" class="form-message"></p>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <span class="admin-kicker">User Records</span>
+                    <h2>Người dùng</h2>
+                </div>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="usersTable"></table>
+            </div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <span class="admin-kicker">Menu Records</span>
+                    <h2>Menu nhà hàng</h2>
+                </div>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="menuTable"></table>
+            </div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <span class="admin-kicker">Order Records</span>
+                    <h2>Đơn hàng</h2>
+                </div>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="ordersTable"></table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+const currentUser = JSON.parse(localStorage.getItem("fooddash_user") || "null");
+
+if (!currentUser || currentUser.role !== "admin") {
+    window.location.href = "login.html";
+}
+
+function renderTable(elementId, columns, rows) {
+    const table = document.getElementById(elementId);
+
+    if (!rows.length) {
+        table.innerHTML = "<tr><td>Chưa có dữ liệu.</td></tr>";
+        return;
+    }
+
+    const head = `<thead><tr>${columns.map((column) => `<th>${column.label}</th>`).join("")}</tr></thead>`;
+    const body = `<tbody>${rows.map((row) => `
+        <tr>
+            ${columns.map((column) => `<td>${row[column.key] ?? ""}</td>`).join("")}
+        </tr>
+    `).join("")}</tbody>`;
+
+    table.innerHTML = head + body;
+}
+
+function statCard(title, value, caption) {
+    return `
+        <article class="admin-stat-card">
+            <span class="admin-stat-title">${title}</span>
+            <strong>${value}</strong>
+            <p>${caption}</p>
+        </article>
+    `;
+}
+
+async function loadDashboard() {
+    const response = await fetch("php/restaurant_dashboard.php");
+    const data = await response.json();
+
+    if (!data.success) {
+        alert(data.message);
+        window.location.href = "login.html";
+        return;
+    }
+
+    document.getElementById("adminStats").innerHTML =
+        statCard("Accounts", data.stats.users, "Tổng số tài khoản hệ thống") +
+        statCard("Menu Items", data.stats.menu_items, "Món ăn đang bán") +
+        statCard("Orders", data.stats.orders, "Tổng số đơn hàng") +
+        statCard("Revenue", `${Number(data.stats.total_revenue).toLocaleString("vi-VN")} VND`, "Doanh thu toàn hệ thống") +
+        statCard("Completed", `${Number(data.stats.completed_revenue).toLocaleString("vi-VN")} VND`, "Doanh thu đơn hoàn tất") +
+        statCard("Average Order", `${Number(data.stats.average_order_value).toLocaleString("vi-VN")} VND`, "Giá trị đơn trung bình");
+
+    renderTable("usersTable", [
+        { key: "id", label: "ID" },
+        { key: "full_name", label: "Họ tên" },
+        { key: "email", label: "Email" },
+        { key: "phone", label: "Số điện thoại" },
+        { key: "role", label: "Vai trò" }
+    ], data.users_data);
+
+    renderTable("menuTable", [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Tên món" },
+        { key: "category", label: "Danh mục" },
+        { key: "price", label: "Giá" }
+    ], data.menu_data);
+
+    renderTable("ordersTable", [
+        { key: "id", label: "Mã đơn" },
+        { key: "full_name", label: "Khách hàng" },
+        { key: "email", label: "Email" },
+        { key: "total_amount", label: "Tổng tiền" },
+        { key: "status", label: "Order" },
+        { key: "delivery_status", label: "Delivery" },
+        { key: "payment_method", label: "Payment" },
+        { key: "payment_status", label: "Paid" }
+    ], data.orders_data);
+}
+
+document.getElementById("menuForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const response = await fetch("php/add_menu_item.php", {
+        method: "POST",
+        body: new FormData(event.target)
+    });
+    const data = await response.json();
+    const message = document.getElementById("menuFormMessage");
+    message.textContent = data.message;
+    message.className = data.success ? "form-message success" : "form-message error";
+
+    if (data.success) {
+        event.target.reset();
+        loadDashboard();
+    }
+});
+
+loadDashboard();
+</script>
+</body>
+</html>

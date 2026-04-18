@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giỏ hàng | FoodDash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="page-header">
+    <div class="container nav">
+        <a class="brand" href="index.html">FoodDash</a>
+        <div class="nav-links">
+            <a href="menu.html">Thực đơn</a>
+            <a href="cart.html">Giỏ hàng</a>
+            <a href="tracking.html">Tracking</a>
+            <a id="adminNavLink" href="admin.html" style="display:none;">Dashboard</a>
+            <a id="loginNavLink" href="login.html">Đăng nhập</a>
+            <span id="userGreeting" class="user-greeting hidden"></span>
+            <a id="logoutNavLink" href="#" class="hidden">Đăng xuất</a>
+        </div>
+    </div>
+</header>
+
+<main class="container section">
+    <section class="page-intro">
+        <div>
+            <span class="eyebrow">Order Placement</span>
+            <h1>Kiểm tra đơn hàng và chọn thanh toán</h1>
+        </div>
+        <a class="btn btn-secondary" href="menu.html">Thêm món nữa</a>
+    </section>
+
+    <div class="cart-layout">
+        <section>
+            <div id="cartItems" class="cart-list"></div>
+        </section>
+        <aside class="summary-card">
+            <h3>Tổng kết đơn hàng</h3>
+            <p id="cartSummary">0 món</p>
+            <strong id="cartTotal">0 VND</strong>
+
+            <label class="field-label">Địa chỉ giao hàng
+                <input id="deliveryAddress" type="text" class="input-field" placeholder="Ví dụ: 123 Nguyễn Trãi, Quận 1">
+            </label>
+
+            <label class="field-label">Tùy chỉnh món ăn
+                <textarea id="customerNote" class="input-field input-area" placeholder="Ít cay, không hành, thêm sốt..."></textarea>
+            </label>
+
+            <label class="field-label">Phương thức thanh toán
+                <select id="paymentMethod" class="input-field">
+                    <option value="">Chọn phương thức thanh toán</option>
+                    <option value="Cash on Delivery">Thanh toán khi nhận hàng</option>
+                    <option value="Credit Card">Thẻ tín dụng</option>
+                    <option value="E-Wallet">Ví điện tử</option>
+                </select>
+            </label>
+
+            <button id="checkoutButton" class="btn btn-primary btn-full btn-disabled" disabled>Đặt hàng</button>
+            <a id="trackOrderLink" class="btn btn-secondary btn-full hidden" href="tracking.html">Theo dõi đơn hàng</a>
+            <p id="orderMessage" class="form-message"></p>
+        </aside>
+    </div>
+</main>
+
+<script>
+const cartKey = "fooddash_cart";
+const userKey = "fooddash_user";
+const currentUser = JSON.parse(localStorage.getItem(userKey) || "null");
+const cartItems = document.getElementById("cartItems");
+const cartSummary = document.getElementById("cartSummary");
+const cartTotal = document.getElementById("cartTotal");
+const orderMessage = document.getElementById("orderMessage");
+const trackOrderLink = document.getElementById("trackOrderLink");
+const checkoutButton = document.getElementById("checkoutButton");
+const deliveryAddressInput = document.getElementById("deliveryAddress");
+const customerNoteInput = document.getElementById("customerNote");
+const paymentMethodInput = document.getElementById("paymentMethod");
+
+if (currentUser && currentUser.role === "admin") {
+    document.getElementById("adminNavLink").style.display = "inline-flex";
+}
+
+if (currentUser) {
+    document.getElementById("loginNavLink").classList.add("hidden");
+    document.getElementById("userGreeting").textContent = `Xin chào, ${currentUser.full_name}`;
+    document.getElementById("userGreeting").classList.remove("hidden");
+    document.getElementById("logoutNavLink").classList.remove("hidden");
+}
+
+function getCart() {
+    return JSON.parse(localStorage.getItem(cartKey) || "[]");
+}
+
+function saveCart(cart) {
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+}
+
+function showModal(title, message) {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+        <div class="modal-card">
+            <div class="modal-badge">FD</div>
+            <h3>${title}</h3>
+            <p>${message}</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" type="button">Đóng</button>
+            </div>
+        </div>
+    `;
+
+    overlay.querySelector("button").addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+            overlay.remove();
+        }
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function validateCheckoutState() {
+    const hasCartItems = getCart().length > 0;
+    const hasAddress = deliveryAddressInput.value.trim().length >= 8;
+    const hasPaymentMethod = paymentMethodInput.value.trim() !== "";
+
+    checkoutButton.disabled = !(hasCartItems && hasAddress && hasPaymentMethod);
+    checkoutButton.classList.toggle("btn-disabled", checkoutButton.disabled);
+}
+
+function renderCart() {
+    const cart = getCart();
+    if (!cart.length) {
+        cartItems.innerHTML = `<div class="empty-card"><h3>Giỏ hàng đang trống</h3><p>Hãy chọn món từ thực đơn để bắt đầu.</p></div>`;
+        cartSummary.textContent = "0 món";
+        cartTotal.textContent = "0 VND";
+        validateCheckoutState();
+        return;
+    }
+
+    const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    cartItems.innerHTML = cart.map((item) => `
+        <article class="cart-item">
+            <div>
+                <h3>${item.name}</h3>
+                <p>${item.quantity} x ${item.price.toLocaleString("vi-VN")} VND</p>
+            </div>
+            <div class="cart-actions">
+                <button onclick="changeQuantity(${item.id}, -1)">-</button>
+                <span>${item.quantity}</span>
+                <button onclick="changeQuantity(${item.id}, 1)">+</button>
+            </div>
+        </article>
+    `).join("");
+
+    cartSummary.textContent = `${totalQuantity} món`;
+    cartTotal.textContent = `${totalPrice.toLocaleString("vi-VN")} VND`;
+    validateCheckoutState();
+}
+
+function changeQuantity(id, diff) {
+    const cart = getCart()
+        .map((item) => item.id === id ? { ...item, quantity: item.quantity + diff } : item)
+        .filter((item) => item.quantity > 0);
+
+    saveCart(cart);
+    renderCart();
+}
+
+async function checkout() {
+    const cart = getCart();
+    const user = JSON.parse(localStorage.getItem(userKey) || "null");
+    const deliveryAddress = deliveryAddressInput.value.trim();
+    const paymentMethod = paymentMethodInput.value.trim();
+
+    if (!user) {
+        showModal("Chưa đăng nhập", "Bạn cần đăng nhập trước khi đặt hàng.");
+        return;
+    }
+
+    if (!cart.length) {
+        showModal("Giỏ hàng trống", "Hãy chọn món trước khi thanh toán.");
+        return;
+    }
+
+    if (deliveryAddress.length < 8) {
+        showModal("Thiếu thông tin", "Vui lòng nhập địa chỉ giao hàng đầy đủ trước khi đặt.");
+        deliveryAddressInput.focus();
+        return;
+    }
+
+    if (!paymentMethod) {
+        showModal("Thiếu thanh toán", "Vui lòng chọn phương thức thanh toán.");
+        paymentMethodInput.focus();
+        return;
+    }
+
+    const response = await fetch("php/order.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            user_id: user.id,
+            items: cart,
+            payment_method: paymentMethod,
+            delivery_address: deliveryAddress,
+            customer_note: customerNoteInput.value
+        })
+    });
+    const data = await response.json();
+
+    orderMessage.textContent = data.message;
+    orderMessage.className = data.success ? "form-message success" : "form-message error";
+
+    if (data.success) {
+        showModal("Đặt hàng thành công", data.message);
+        localStorage.setItem("fooddash_last_order_id", String(data.order_id));
+        trackOrderLink.href = `tracking.html?order_id=${data.order_id}`;
+        trackOrderLink.classList.remove("hidden");
+        localStorage.removeItem(cartKey);
+        deliveryAddressInput.value = "";
+        customerNoteInput.value = "";
+        paymentMethodInput.value = "";
+        renderCart();
+    } else {
+        showModal("Không thể đặt hàng", data.message);
+    }
+}
+
+checkoutButton.addEventListener("click", checkout);
+deliveryAddressInput.addEventListener("input", validateCheckoutState);
+paymentMethodInput.addEventListener("change", validateCheckoutState);
+document.getElementById("logoutNavLink").addEventListener("click", (event) => {
+    event.preventDefault();
+    localStorage.removeItem("fooddash_user");
+    window.location.href = "index.html";
+});
+
+renderCart();
+</script>
+</body>
+</html>

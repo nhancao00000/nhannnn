@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thực đơn | FoodDash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="page-header">
+    <div class="container nav">
+        <a class="brand" href="index.html">FoodDash</a>
+        <div class="nav-links">
+            <a href="menu.html">Thực đơn</a>
+            <a href="cart.html">Giỏ hàng</a>
+            <a href="tracking.html">Tracking</a>
+            <a id="adminNavLink" href="admin.html" style="display:none;">Dashboard</a>
+            <a id="loginNavLink" href="login.html">Đăng nhập</a>
+            <span id="userGreeting" class="user-greeting hidden"></span>
+            <a id="logoutNavLink" href="#" class="hidden">Đăng xuất</a>
+        </div>
+    </div>
+</header>
+
+<main class="container section">
+    <section class="page-intro">
+        <div>
+            <span class="eyebrow">Restaurant Menus</span>
+            <h1>Chọn món và tùy chỉnh đơn hàng của bạn</h1>
+        </div>
+        <a class="btn btn-secondary" href="cart.html">Xem giỏ hàng</a>
+    </section>
+    <section id="menuGrid" class="menu-grid"></section>
+</main>
+
+<script>
+const menuGrid = document.getElementById("menuGrid");
+const cartKey = "fooddash_cart";
+const currentUser = JSON.parse(localStorage.getItem("fooddash_user") || "null");
+
+if (currentUser) {
+    document.getElementById("loginNavLink").classList.add("hidden");
+    document.getElementById("userGreeting").textContent = `Xin chào, ${currentUser.full_name}`;
+    document.getElementById("userGreeting").classList.remove("hidden");
+    document.getElementById("logoutNavLink").classList.remove("hidden");
+}
+
+if (currentUser && currentUser.role === "admin") {
+    document.getElementById("adminNavLink").style.display = "inline-flex";
+}
+
+function getCart() {
+    return JSON.parse(localStorage.getItem(cartKey) || "[]");
+}
+
+function saveCart(cart) {
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
+function addToCart(id, name, price) {
+    const cart = getCart();
+    const existing = cart.find((entry) => entry.id === id);
+
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ id, name, price, quantity: 1 });
+    }
+
+    saveCart(cart);
+    showModal("Đã thêm món vào giỏ hàng", "Món ăn đã được lưu vào giỏ của bạn.");
+}
+
+function showModal(title, message) {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+        <div class="modal-card">
+            <div class="modal-badge">FD</div>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(message)}</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" type="button">Đóng</button>
+            </div>
+        </div>
+    `;
+
+    overlay.querySelector("button").addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+            overlay.remove();
+        }
+    });
+
+    document.body.appendChild(overlay);
+}
+
+async function loadMenu() {
+    const response = await fetch("php/get_menu.php");
+    const items = await response.json();
+
+    menuGrid.innerHTML = items.map((item) => `
+        <article class="menu-card">
+            <img class="menu-image" src="${escapeHtml(item.image_url || 'images/burger.svg')}" alt="${escapeHtml(item.name)}">
+            <span class="menu-tag">${escapeHtml(item.category)}</span>
+            <h3>${escapeHtml(item.name)}</h3>
+            <p>${escapeHtml(item.description)}</p>
+            <div class="menu-card-footer">
+                <strong>${Number(item.price).toLocaleString("vi-VN")} VND</strong>
+                <button class="btn btn-primary" onclick="addToCart(${Number(item.id)}, '${String(item.name).replaceAll("'", "\\'")}', ${Number(item.price)})">
+                    Thêm
+                </button>
+            </div>
+        </article>
+    `).join("");
+}
+
+document.getElementById("logoutNavLink").addEventListener("click", (event) => {
+    event.preventDefault();
+    localStorage.removeItem("fooddash_user");
+    window.location.href = "index.html";
+});
+
+loadMenu();
+</script>
+</body>
+</html>

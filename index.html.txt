@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodDash | Food Delivery Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="hero">
+    <nav class="nav container">
+        <div class="brand">FoodDash</div>
+        <div class="nav-links">
+            <a href="menu.html">Thực đơn</a>
+            <a href="tracking.html">Tracking</a>
+            <a id="adminNavLink" href="admin.html" style="display:none;">Dashboard</a>
+            <a id="loginNavLink" href="login.html">Đăng nhập</a>
+            <span id="userGreeting" class="user-greeting hidden"></span>
+            <a id="logoutNavLink" href="#" class="hidden">Đăng xuất</a>
+            <a class="btn btn-light" href="register.html">Tạo tài khoản</a>
+        </div>
+    </nav>
+    <div class="container hero-grid">
+        <div class="hero-copy">
+            <span class="eyebrow">Food Delivery Platform</span>
+            <h1>Browse menus, place orders, track delivery and manage restaurants.</h1>
+            <p>
+                FoodDash now includes order placement, payment integration, delivery tracking,
+                and a restaurant management dashboard that matches the assignment brief.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="menu.html">Order now</a>
+                <a class="btn btn-secondary" href="tracking.html">Track delivery</a>
+            </div>
+        </div>
+        <div class="hero-card glass">
+            <div class="stat-row">
+                <div>
+                    <strong>4</strong>
+                    <span>Core modules</span>
+                </div>
+                <div>
+                    <strong>24/7</strong>
+                    <span>Order monitoring</span>
+                </div>
+            </div>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <span class="feature-dot"></span>
+                    <p>Order placement with cart, preferences, delivery address and payment choice.</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-dot"></span>
+                    <p>Real-time GPS-style delivery tracking with ETA and driver details.</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-dot"></span>
+                    <p>Restaurant dashboard for menu updates, order management and sales analysis.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="container section">
+    <section class="grid-3 feature-grid-4">
+        <article class="info-card">
+            <h3>1. Order Placement</h3>
+            <p>Customers browse menus, customise requests and place orders online.</p>
+        </article>
+        <article class="info-card">
+            <h3>2. Delivery Tracking</h3>
+            <p>The system simulates real-time driver tracking with coordinates and ETA.</p>
+        </article>
+        <article class="info-card">
+            <h3>3. Payment Integration</h3>
+            <p>Orders support cash on delivery, credit card and e-wallet methods.</p>
+        </article>
+        <article class="info-card">
+            <h3>4. Restaurant Dashboard</h3>
+            <p>Restaurant owners can review users, orders, menu items and revenue data.</p>
+        </article>
+    </section>
+</main>
+<script>
+const homeUser = JSON.parse(localStorage.getItem("fooddash_user") || "null");
+if (homeUser) {
+    document.getElementById("loginNavLink").classList.add("hidden");
+    document.getElementById("userGreeting").textContent = `Xin chào, ${homeUser.full_name}`;
+    document.getElementById("userGreeting").classList.remove("hidden");
+    document.getElementById("logoutNavLink").classList.remove("hidden");
+}
+if (homeUser && homeUser.role === "admin") {
+    document.getElementById("adminNavLink").style.display = "inline-flex";
+}
+document.getElementById("logoutNavLink").addEventListener("click", (event) => {
+    event.preventDefault();
+    localStorage.removeItem("fooddash_user");
+    window.location.reload();
+});
+</script>
+</body>
+</html>

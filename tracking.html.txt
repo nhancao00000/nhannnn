@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theo dõi đơn hàng | FoodDash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="page-header">
+    <div class="container nav">
+        <a class="brand" href="index.html">FoodDash</a>
+        <div class="nav-links">
+            <a href="menu.html">Thực đơn</a>
+            <a href="cart.html">Giỏ hàng</a>
+            <a href="tracking.html">Tracking</a>
+            <a id="loginNavLink" href="login.html">Đăng nhập</a>
+            <span id="userGreeting" class="user-greeting hidden"></span>
+            <a id="logoutNavLink" href="#" class="hidden">Đăng xuất</a>
+        </div>
+    </div>
+</header>
+
+<main class="container section">
+    <section class="page-intro">
+        <div>
+            <span class="eyebrow">Delivery Tracking</span>
+            <h1>Theo dõi vị trí shipper theo thời gian thực</h1>
+        </div>
+    </section>
+
+    <div class="tracking-layout tracking-layout-upgraded">
+        <section class="tracking-column">
+            <article class="summary-card tracking-overview">
+                <div class="tracking-overview-head">
+                    <div>
+                        <span class="tracking-kicker">Live Order</span>
+                        <h3 id="trackingTitle">Đang tải dữ liệu...</h3>
+                    </div>
+                    <span id="etaBadge" class="tracking-eta">ETA --</span>
+                </div>
+                <div id="trackingQuickFacts" class="tracking-facts"></div>
+            </article>
+
+            <article class="summary-card tracking-driver-card">
+                <div class="driver-avatar">FD</div>
+                <div class="driver-copy">
+                    <span class="tracking-kicker">Driver Details</span>
+                    <h3 id="driverName">Đang cập nhật tài xế...</h3>
+                    <p id="driverPhone">---</p>
+                    <p id="deliveryAddressText">---</p>
+                </div>
+            </article>
+
+            <article class="summary-card tracking-timeline-card">
+                <span class="tracking-kicker">Delivery Timeline</span>
+                <div id="trackingTimeline" class="tracking-timeline"></div>
+            </article>
+        </section>
+
+        <section class="map-card tracking-map-card">
+            <div class="map-header">
+                <div>
+                    <strong>Bản đồ mô phỏng GPS</strong>
+                    <p class="tracking-map-note">Vị trí được mô phỏng theo tiến trình giao hàng.</p>
+                </div>
+                <span id="deliveryStatusBadge" class="status-pill">Preparing</span>
+            </div>
+            <div class="map-grid tracking-map-grid">
+                <div class="route-line"></div>
+                <div class="map-pin restaurant-pin">Nhà hàng</div>
+                <div id="driverPin" class="map-pin driver-pin">Shipper</div>
+                <div class="map-pin customer-pin">Bạn</div>
+            </div>
+            <div id="trackingMeta" class="tracking-meta-grid"></div>
+        </section>
+    </div>
+</main>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const orderId = params.get("order_id") || localStorage.getItem("fooddash_last_order_id");
+const trackingUser = JSON.parse(localStorage.getItem("fooddash_user") || "null");
+const trackingTitle = document.getElementById("trackingTitle");
+const etaBadge = document.getElementById("etaBadge");
+const deliveryStatusBadge = document.getElementById("deliveryStatusBadge");
+const trackingQuickFacts = document.getElementById("trackingQuickFacts");
+const trackingTimeline = document.getElementById("trackingTimeline");
+const driverName = document.getElementById("driverName");
+const driverPhone = document.getElementById("driverPhone");
+const deliveryAddressText = document.getElementById("deliveryAddressText");
+const trackingMeta = document.getElementById("trackingMeta");
+const driverPin = document.getElementById("driverPin");
+
+if (trackingUser) {
+    document.getElementById("loginNavLink").classList.add("hidden");
+    document.getElementById("userGreeting").textContent = `Xin chào, ${trackingUser.full_name}`;
+    document.getElementById("userGreeting").classList.remove("hidden");
+    document.getElementById("logoutNavLink").classList.remove("hidden");
+}
+
+if (!orderId) {
+    trackingTitle.textContent = "Không tìm thấy mã đơn hàng.";
+} else {
+    loadTracking();
+    setInterval(loadTracking, 5000);
+}
+
+function buildTimeline(status) {
+    const steps = [
+        { key: "Preparing", label: "Nhà hàng chuẩn bị món" },
+        { key: "Driver Assigned", label: "Đã có tài xế nhận đơn" },
+        { key: "On the Way", label: "Shipper đang giao hàng" },
+        { key: "Delivered", label: "Đơn hàng đã hoàn tất" }
+    ];
+
+    const currentIndex = steps.findIndex((step) => step.key === status);
+
+    trackingTimeline.innerHTML = steps.map((step, index) => `
+        <div class="timeline-item ${index <= currentIndex ? "active" : ""}">
+            <span class="timeline-dot"></span>
+            <div>
+                <strong>${step.label}</strong>
+                <p>${index < currentIndex ? "Đã hoàn thành" : index === currentIndex ? "Đang diễn ra" : "Chờ xử lý"}</p>
+            </div>
+        </div>
+    `).join("");
+}
+
+async function loadTracking() {
+    const response = await fetch(`php/track_order.php?order_id=${orderId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+        trackingTitle.textContent = data.message;
+        return;
+    }
+
+    const order = data.order;
+    trackingTitle.textContent = `Đơn #${order.id} đang được theo dõi`;
+    etaBadge.textContent = `ETA ${order.eta_minutes} phút`;
+    deliveryStatusBadge.textContent = order.delivery_status;
+
+    trackingQuickFacts.innerHTML = `
+        <div class="tracking-fact">
+            <span class="tracking-fact-label">Order status</span>
+            <strong>${order.status}</strong>
+        </div>
+        <div class="tracking-fact">
+            <span class="tracking-fact-label">Payment</span>
+            <strong>${order.payment_method}</strong>
+        </div>
+        <div class="tracking-fact">
+            <span class="tracking-fact-label">Payment state</span>
+            <strong>${order.payment_status}</strong>
+        </div>
+    `;
+
+    driverName.textContent = order.driver_name;
+    driverPhone.textContent = `Số điện thoại: ${order.driver_phone}`;
+    deliveryAddressText.textContent = `Địa chỉ giao: ${order.delivery_address || "Chưa cập nhật"}`;
+
+    trackingMeta.innerHTML = `
+        <article class="tracking-meta-card">
+            <span class="tracking-fact-label">Ghi chú</span>
+            <strong>${order.customer_note || "Không có ghi chú"}</strong>
+        </article>
+        <article class="tracking-meta-card">
+            <span class="tracking-fact-label">Tọa độ GPS</span>
+            <strong>${order.tracking_lat}, ${order.tracking_lng}</strong>
+        </article>
+        <article class="tracking-meta-card">
+            <span class="tracking-fact-label">Trạng thái giao hàng</span>
+            <strong>${order.delivery_status}</strong>
+        </article>
+    `;
+
+    buildTimeline(order.delivery_status);
+
+    const progress = Math.min(78, Math.max(12, 80 - order.eta_minutes * 5));
+    driverPin.style.left = `${progress}%`;
+}
+
+document.getElementById("logoutNavLink").addEventListener("click", (event) => {
+    event.preventDefault();
+    localStorage.removeItem("fooddash_user");
+    window.location.href = "index.html";
+});
+</script>
+</body>
+</html>
